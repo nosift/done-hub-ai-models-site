@@ -19,7 +19,31 @@
       -webkit-font-smoothing:antialiased;
       -moz-osx-font-smoothing:grayscale;
     }
+/* 如果页面被嵌入（iframe），把 toast 放到顶部，避免底部被遮 */
+.in-embed #copy-toast { top: 16px; bottom: auto; }
 
+/* 复制后的卡片短暂高亮 */
+.model-card.copied {
+  outline: 2px solid #34c759;
+  box-shadow: 0 0 0 3px rgba(52,199,89,0.35);
+}
+
+
+/* 卡片右侧小方块图标（老的 🖼️ 用） */
+.model-icon {
+  width: 16px;
+  height: 16px;
+  background: #af52de;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 10px;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+    
     /* 顶部复制提示 toast */
     .copy-toast {
       position: fixed;
@@ -433,8 +457,8 @@
             <div class="api-title">主节点</div>
             <div class="api-url">https://cc.2828257.xyz</div>
             <br />
-            <div class="api-title">从节点</div>
-            <div class="api-url">https://cc.2828257.xyz</div>
+            <div class="api-title">openwebui</div>
+            <div class="api-url">https://ai.hhlist.ggff.net</div>
             <br />
             <div style="font-size:12px;color:#666;margin-top:8px;">如出现连通问题，请问该备份节点，避免和速度提升问题</div>
           </div>
@@ -460,56 +484,66 @@
   </div>
 
   <!-- 复制提示 -->
-  <div id="copy-toast" class="copy-toast">已复制</div>
+ <div id="copy-toast" class="copy-toast" role="status" aria-live="polite">已复制</div>
+<script>
+  // 显示提示
+  function showToast(message) {
+    const toast = document.getElementById('copy-toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1500);
+  }
 
-  <script>
-    function updateDate(){
-      const now=new Date();
-      const dateStr=now.toISOString().split('T')[0];
-      const el=document.querySelector('.update-date');
-      if(el) el.textContent=dateStr;
+  // 复制文本到剪贴板（HTTPS 优先，含回退）
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
+    }
+    return legacyCopy(text);
+
+    function legacyCopy(t) {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
+      return Promise.resolve();
+    }
+  }
+
+  // 可选：更新右侧日期
+  function updateDate() {
+    const now = new Date();
+    const el = document.querySelector('.update-date');
+    if (el) el.textContent = now.toISOString().split('T')[0];
+  }
+
+  // 页面加载完再绑定
+  document.addEventListener('DOMContentLoaded', () => {
+    updateDate();
+
+    // 如果在 iframe 中，给 <html> 打标，触发顶部 toast 样式
+    if (window.top !== window.self) {
+      document.documentElement.classList.add('in-embed');
     }
 
-    // 复制到剪贴板（HTTPS 优先，含回退）
-    function copyText(text) {
-      if (navigator.clipboard && window.isSecureContext) {
-        return navigator.clipboard.writeText(text);
-      } else {
-        const ta=document.createElement('textarea');
-        ta.value=text;
-        ta.style.position='fixed'; ta.style.left='-9999px';
-        document.body.appendChild(ta);
-        ta.focus(); ta.select();
-        try { document.execCommand('copy'); } catch(e) {}
-        document.body.removeChild(ta);
-        return Promise.resolve();
-      }
-    }
-
-    // Toast
-    let toastTimer=null;
-    function showToast(msg){
-      const el=document.getElementById('copy-toast');
-      if(!el) return;
-      el.textContent=msg||'已复制';
-      el.classList.add('show');
-      clearTimeout(toastTimer);
-      toastTimer=setTimeout(()=>el.classList.remove('show'), 1200);
-    }
-
-    document.addEventListener('DOMContentLoaded',()=>{
-      updateDate();
-
-      // 点击卡片复制模型名
-      const cards=document.querySelectorAll('.model-card');
-      cards.forEach(card=>{
-        card.addEventListener('click',function(){
-          const name=(this.querySelector('.model-name')||{}).textContent?.trim();
-          if(!name) return;
-          copyText(name).then(()=>showToast(`已复制：${name}`));
+    // 点击卡片：复制 + 顶部 toast + 高亮
+    const cards = document.querySelectorAll('.model-card');
+    cards.forEach(card => {
+      card.addEventListener('click', function () {
+        const name = (this.querySelector('.model-name') || {}).textContent?.trim();
+        if (!name) return;
+        copyText(name).then(() => {
+          showToast(`已复制：${name}`);
+          this.classList.add('copied');
+          setTimeout(() => this.classList.remove('copied'), 800);
         });
       });
     });
-  </script>
+  });
+</script>
 </body>
 </html>
