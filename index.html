@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI ififnono - AI模型服务平台</title>
+  <style>
+    html, body { overflow-x: hidden; } /* 禁止横向滚动（手机端不晃动） */
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      /* 顶部/底部白色，其它视觉保持不变 */
+      background:#fff;
+      min-height:100vh;
+      color:#000;
+      line-height:1.5;
+      font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,sans-serif;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    /* 顶部复制提示 toast */
+    .copy-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all .25s ease;
+      z-index: 9999;
+    }
+    .copy-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* 导航栏（保持视觉不变） */
+    .navbar{
+      background:rgba(255,255,255,0.1);
+      backdrop-filter:blur(20px) saturate(180%);
+      border-bottom:0.5px solid rgba(255,255,255,0.2);
+      padding:12px 24px;
+      display:flex;justify-content:space-between;align-items:center;
+    }
+    .logo{display:flex;align-items:center;color:#fff;font-weight:600;font-size:18px;letter-spacing:-0.3px;}
+    .logo::before{content:"🌊";margin-right:8px;font-size:24px;}
+    .nav-links{display:flex;gap:24px;align-items:center;}
+    .nav-link{color:#fff;text-decoration:none;padding:8px 16px;border-radius:20px;transition:all .3s ease;font-weight:400;letter-spacing:-0.2px;}
+    .nav-link:hover{background:rgba(255,255,255,0.2);}
+    .nav-link.primary{background:#007aff;color:#fff;font-weight:500;}
+
+    /* 主容器 */
+    .container{max-width:1000px;margin:0 auto;padding:24px;}
+
+    /* 顶部卡片 */
+    .top-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+    .credit-card{
+      background:linear-gradient(135deg,#007aff 0%,#0056cc 100%);
+      color:#fff;padding:24px;border-radius:16px;box-shadow:0 4px 20px rgba(0,122,255,.3);
+      position:relative;overflow:hidden;
+    }
+    .credit-card::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1) 0%,transparent 50%);}
+    .credit-title{font-size:14px;opacity:.9;margin-bottom:8px;font-weight:500;position:relative;z-index:1;}
+    .credit-amount{font-size:32px;font-weight:700;margin-bottom:4px;letter-spacing:-1px;position:relative;z-index:1;}
+    .credit-subtitle{font-size:14px;opacity:.8;font-weight:400;position:relative;z-index:1;}
+
+    .update-card{
+      background:rgba(255,255,255,.8);backdrop-filter:blur(20px) saturate(180%);
+      border:.5px solid rgba(255,255,255,.3);padding:24px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.1);
+    }
+    .update-title{font-size:14px;color:#666;margin-bottom:8px;font-weight:500;}
+    .update-date{font-size:24px;font-weight:700;color:#000;letter-spacing:-.5px;}
+
+    /* 主内容 */
+    .main-content{
+      background:rgba(255,255,255,.95);
+      backdrop-filter:blur(40px) saturate(180%);
+      border:.5px solid rgba(255,255,255,.3);
+      border-radius:20px;padding:32px;box-shadow:0 8px 40px rgba(0,0,0,.12);
+    }
+    .section-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
+    .section-title{font-size:24px;font-weight:700;color:#000;margin-bottom:8px;letter-spacing:-.5px;}
+    .section-link{color:#007aff;text-decoration:none;font-size:14px;font-weight:500;margin-top:8px;}
+    .section-subtitle{font-size:14px;margin-bottom:32px;color:#000;font-weight:400;}
+    .section-subtitle .free-text{color:#34c759;font-weight:500;}
+
+    /* 模型分类 */
+    .model-category{margin-bottom:32px;}
+    .category-header{
+      display:flex;align-items:center;margin-bottom:16px;color:#000;font-weight:600;font-size:16px;
+      padding-left:12px;border-left:3px solid #007aff;
+    }
+    .category-header img{width:16px;height:16px;margin-right:6px;vertical-align:middle;}
+    .category-icon{margin-right:8px;font-size:18px;}
+
+    .model-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;}
+
+    /* 模型卡片（普通） */
+    .model-card{
+      background:rgba(255,255,255,.9);backdrop-filter:blur(20px) saturate(180%);
+      border:.5px solid rgba(0,0,0,.08);padding:16px 20px;border-radius:12px;
+      transition:all .3s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;cursor:pointer;
+      display:flex;justify-content:space-between;align-items:center;min-height:56px;
+    }
+    .model-card:hover{background:rgba(255,255,255,.95);transform:translateY(-2px) scale(1.005);box-shadow:0 8px 30px rgba(0,0,0,.15);border-color:rgba(0,122,255,.2);}
+    .model-name{color:#000;font-weight:500;font-size:14px;flex:1;letter-spacing:-.2px;}
+
+    /* 绿色卡片（免费） */
+    .model-card.green{
+      background:#34c759;color:#fff;border:none;box-shadow:0 4px 20px rgba(52,199,89,.3);
+    }
+    .model-card.green:hover{background:#30b955;box-shadow:0 8px 30px rgba(52,199,89,.4);}
+    .model-card.green .model-name{color:#fff;}
+
+    /* 免费徽标（右侧白色小药丸） */
+    .model-badge{
+      background:#ff9500;color:#fff;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:600;margin-left:12px;letter-spacing:-.1px;
+    }
+    .model-badge.free{
+      background:rgba(255,255,255,.3);
+      color:#fff;backdrop-filter:blur(10px);
+    }
+    /* 橙色 Claude 专属徽标 */
+    .badge-orange{
+      background:#ff9500;color:#fff;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700;margin-left:12px;letter-spacing:-.1px;
+      white-space:nowrap;
+    }
+
+    /* 卡片右侧图标（画图模型用） */
+    .model-right-icon{width:16px;height:16px;margin-left:12px;flex-shrink:0;}
+
+    /* API区、按钮、页脚（保持） */
+    .api-section{margin-top:32px;padding-top:24px;border-top:.5px solid rgba(0,0,0,.1);}
+    .api-header{color:#000;font-size:18px;font-weight:600;margin-bottom:16px;letter-spacing:-.3px;}
+    .api-content{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+    .api-info{background:rgba(248,249,250,.8);backdrop-filter:blur(20px) saturate(180%);border:.5px solid rgba(0,0,0,.06);padding:20px;border-radius:12px;}
+    .api-title{color:#000;font-weight:600;margin-bottom:8px;font-size:14px;}
+    .api-url{color:#007aff;font-family:'SF Mono','Monaco','Inconsolata',monospace;font-size:14px;font-weight:500;}
+    .api-tips{background:rgba(248,249,250,.8);backdrop-filter:blur(20px) saturate(180%);border:.5px solid rgba(0,0,0,.06);padding:20px;border-radius:12px;color:#000;position:relative;}
+    .api-tips::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,122,255,.02) 0%,rgba(0,122,255,.01) 100%);border-radius:12px;pointer-events:none;}
+    .tip-title{display:flex;align-items:center;margin-bottom:12px;font-weight:600;color:#007aff;}
+    .tip-item{margin-bottom:8px;font-size:14px;line-height:1.6;position:relative;z-index:1;}
+    .tip-item code{background:rgba(0,122,255,.1);padding:2px 6px;border-radius:4px;font-family:'SF Mono','Monaco','Inconsolata',monospace;color:#007aff;font-size:13px;}
+    .enjoy-text{margin-top:16px;font-weight:600;position:relative;z-index:1;}
+
+    .action-buttons{display:flex;gap:12px;margin-top:24px;}
+    .action-btn{flex:1;background:#007aff;color:#fff;padding:14px 24px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);box-shadow:0 4px 14px rgba(0,122,255,.3);letter-spacing:-.2px;}
+    .action-btn:hover{background:#0056cc;transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,122,255,.4);}
+    .action-btn:active{transform:translateY(0);}
+    .action-btn.secondary{background:#007aff;}
+
+    .footer{text-align:center;padding:24px;color:rgba(0,0,0,.6);font-size:14px;background:#fff;}
+    .footer a{color:rgba(0,0,0,.8);text-decoration:none;font-weight:500;}
+
+    /* 响应式 */
+    @media (max-width:768px){
+      .container{padding:16px;}
+      .top-cards{grid-template-columns:1fr;gap:12px;}
+      .main-content{padding:24px;border-radius:16px;}
+      .nav-links{gap:12px;}
+      .model-grid{grid-template-columns:1fr;}
+      .api-content{grid-template-columns:1fr;}
+    }
+
+    /* 滚动条（可留） */
+    ::-webkit-scrollbar{width:6px;}
+    ::-webkit-scrollbar-track{background:rgba(0,0,0,.05);border-radius:3px;}
+    ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.2);border-radius:3px;}
+    ::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.35);}
+  </style>
+</head>
+<body>
+  <!-- 顶部 -->
+  <nav class="navbar"></nav>
+
+  <div class="container">
+    <!-- 顶部卡片 -->
+    <div class="top-cards">
+      <div class="credit-card">
+        <div class="credit-title">充值信息</div>
+        <div class="credit-amount">0.2:1</div>
+        <div class="credit-subtitle">人民币 / 美元</div>
+      </div>
+      <div class="update-card">
+        <div class="update-title">最近更新</div>
+        <div class="update-date">2025-08-10</div>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">模型列表</h2>
+          <div class="section-subtitle">非正常使用 <span class="free-text">免费模型</span> 会被封号码</div>
+        </div>
+        <a class="section-link" href="https://c1b78cc7-88a7-4255-96bc-75ed32516b8a.e1-us-east-azure.choreoapps.dev/price">查看价格详情 ></a>
+      </div>
+
+      <!-- 1. Gemini（不免费组，照你的图2） -->
+      <div class="model-category">
+        <div class="category-header">
+          <img src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/gemini-color-2.svg" alt="Gemini图标" />
+          <span>Gemini</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card"><div class="model-name">gemini-2.0-flash</div></div>
+          <div class="model-card"><div class="model-name">gemini-2.0-flash-preview-image-generation</div></div>
+          <div class="model-card"><div class="model-name">gemini-2.5-flash</div></div>
+          <div class="model-card"><div class="model-name">gemini-2.5-flash-lite</div></div>
+          <div class="model-card"><div class="model-name">gemini-2.5-pro</div></div>
+          <div class="model-card"><div class="model-name">imagen-3.0-generate-002</div><div class="model-icon">🖼️</div></div>
+          <div class="model-card"><div class="model-name">imagen-4.0-generate-preview-06-06</div><div class="model-icon">🖼️</div></div>
+          <div class="model-card"><div class="model-name">imagen-4.0-fast-generate-preview-06-06</div><div class="model-icon">🖼️</div></div>
+          <div class="model-card"><div class="model-name">imagen-4.0-ultra-generate-preview-06-06</div><div class="model-icon">🖼️</div></div>
+        </div>
+      </div>
+
+      <!-- 2. Claude（白卡片 + 橙色徽标，仅支持ClaudeCode） -->
+      <div class="model-category">
+        <div class="category-header">
+          <img src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/claude-color.svg" alt="Claude图标" />
+          <span>Claude</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card"><div class="model-name">claude-3-5-haiku-20241022</div><span class="badge-orange">仅支持ClaudeCode</span></div>
+          <div class="model-card"><div class="model-name">claude-3-5-sonnet</div><span class="badge-orange">仅支持ClaudeCode</span></div>
+          <div class="model-card"><div class="model-name">claude-3-7-sonnet</div><span class="badge-orange">仅支持ClaudeCode</span></div>
+          <div class="model-card"><div class="model-name">claude-4-opus</div><span class="badge-orange">仅支持ClaudeCode</span></div>
+          <div class="model-card"><div class="model-name">claude-4-opus-thinking</div><span class="badge-orange">仅支持ClaudeCode</span></div>
+          <div class="model-card"><div class="model-name">claude-4-sonnet</div><span class="badge-orange">仅支持ClaudeCode</span></div>
+          <div class="model-card"><div class="model-name">claude-4-sonnet-thinking</div><span class="badge-orange">仅支持ClaudeCode</span></div>
+        </div>
+      </div>
+
+      <!-- 3. Gemini（你的免费组） -->
+      <div class="model-category">
+        <div class="category-header">
+          <img src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/gemini-color-2.svg" alt="Gemini图标" />
+          <span>Gemini（免费）</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card green"><div class="model-name">gemini-2.5-flash</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gemini-2.5-flash-lite</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gemini-2.5-flash-nothinking</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gemini-2.5-flash-search</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gemini-2.5-pro</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gemini-2.5-pro-search</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gemini-embedding-001</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gemini-embedding-exp-03-07</div><span class="model-badge free">免费</span></div>
+        </div>
+      </div>
+
+      <!-- 4. GPT（免费） -->
+      <div class="model-category">
+        <div class="category-header">
+          <img src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/openai.svg" alt="GPT图标" />
+          <span>GPT</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card green"><div class="model-name">gpt-4.1</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gpt-4.1-mini</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gpt-4.1-nano</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gpt-4o</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gpt-4o-mini</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gpt-5</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gpt-5-high</div><span class="model-badge free">免费</span></div>
+
+          <div class="model-card green"><div class="model-name">aqa</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">dall-e-3</div><span class="model-badge free">免费</span></div>
+
+          <div class="model-card green"><div class="model-name">openai/gpt-oss-120b</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">openai/gpt-oss-20b</div><span class="model-badge free">免费</span></div>
+
+          <div class="model-card green"><div class="model-name">o3</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">o3-mini</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">o4-mini</div><span class="model-badge free">免费</span></div>
+        </div>
+      </div>
+
+      <!-- 5. DeepSeek（免费） -->
+      <div class="model-category">
+        <div class="category-header">
+          <img src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/deepseek-color.svg" alt="DeepSeek图标" />
+          <span>DeepSeek</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card green"><div class="model-name">DeepSeek-R1</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">DeepSeek-R1-0528</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">DeepSeek-V3</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">DeepSeek-V3-0324</div><span class="model-badge free">免费</span></div>
+        </div>
+      </div>
+
+      <!-- 6. Grok（免费） -->
+      <div class="model-category">
+        <div class="category-header">
+          <img src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/grok-2.png" alt="Grok图标" />
+          <span>Grok</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card green"><div class="model-name">grok-3</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">grok-3-deepersearch</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">grok-3-imageGen</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">grok-3-mini</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">grok-3-reasoning</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">grok-3-search</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">grok-4</div><span class="model-badge free">免费</span></div>
+        </div>
+      </div>
+
+      <!-- 7. Kimi（免费） -->
+      <div class="model-category">
+        <div class="category-header">
+          <img src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/kimi-color.svg" alt="Kimi图标" />
+          <span>Kimi</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card green"><div class="model-name">Kimi-k2</div><span class="model-badge free">免费</span></div>
+        </div>
+      </div>
+
+      <!-- 8. 智谱（免费） -->
+      <div class="model-category">
+        <div class="category-header">
+          <img src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/zhipu-color.svg" alt="智谱图标" />
+          <span>智谱</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card green"><div class="model-name">cogview-3</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">glm-3-turbo</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">glm-4</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">glm-4v</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">glm-4.5</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">GLM-4.5-Air</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">GLM-4.5-Air-X</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">GLM-4.5-Flash</div><span class="model-badge free">免费</span></div>
+        </div>
+      </div>
+
+      <!-- 9. Qwen（免费，独立系列） -->
+      <div class="model-category">
+        <div class="category-header">
+          <img src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/qwen-color.svg" alt="Qwen图标" />
+          <span>Qwen</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card green"><div class="model-name">Qwen/Qwen3-235B-A22B</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">Qwen/Qwen3-30B-A3B</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">qwen/qwen3-32b</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">qwen/qwen3-coder</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">Qwen2.5-VL-72B</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">Qwen3-Coder-480B-A35B</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">Qwen3-Embedding-4B</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">Qwen3-Embedding-8B</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">Qwen3-Reranker-8B</div><span class="model-badge free">免费</span></div>
+        </div>
+      </div>
+
+      <!-- 10. 其他（免费） -->
+      <div class="model-category">
+        <div class="category-header">
+          <span class="category-icon">✨</span>
+          <span>其他</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card green"><div class="model-name">bge-m3</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">bge-reranker-v2-m3</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">FunAudioLLM/SenseVoiceSmall</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">gemma2-9b-it</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">kontext-flux</div><span class="model-badge free">免费</span></div>
+
+          <div class="model-card green"><div class="model-name">meta-llama/llama-3.2-11b-vision-instruct:free</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">meta-llama/llama-3.3-70b-instruct:free</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo</div><span class="model-badge free">免费</span></div>
+
+          <div class="model-card green"><div class="model-name">tngtech/deepseek-r1t2-chimera:free</div><span class="model-badge free">免费</span></div>
+        </div>
+      </div>
+
+      <!-- 11. 画图模型（免费，卡片右侧带图标） -->
+      <div class="model-category">
+        <div class="category-header">
+          <span class="category-icon">🖼️</span>
+          <span>画图模型</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card green">
+            <div class="model-name">sora-img</div>
+            <span class="model-badge free">免费</span>
+            <img class="model-right-icon" src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/openai.svg" alt="sora-icon" />
+          </div>
+          <div class="model-card green">
+            <div class="model-name">midjourney</div>
+            <span class="model-badge free">免费</span>
+            <img class="model-right-icon" src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/midjourney.svg" alt="midjourney-icon" />
+          </div>
+          <div class="model-card green">
+            <div class="model-name">Flux.1</div>
+            <span class="model-badge free">免费</span>
+            <img class="model-right-icon" src="https://pub-9c27ed47075d490c8aef4e0a02ac73bc.r2.dev/flux.svg" alt="flux-icon" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 12. 翻译模型（免费，最底部） -->
+      <div class="model-category">
+        <div class="category-header">
+          <span class="category-icon">🌐</span>
+          <span>翻译模型</span>
+        </div>
+        <div class="model-grid">
+          <div class="model-card green"><div class="model-name">gpt4.1翻译模型</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">沉浸式翻译</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">翻译</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">翻译plus</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">翻译Pro</div><span class="model-badge free">免费</span></div>
+          <div class="model-card green"><div class="model-name">翻译Ultra</div><span class="model-badge free">免费</span></div>
+        </div>
+      </div>
+
+      <!-- API 节点（原样） -->
+      <div class="api-section">
+        <h3 class="api-header">API 节点</h3>
+        <div class="api-content">
+          <div class="api-info">
+            <div class="api-title">主节点</div>
+            <div class="api-url">https://cc.2828257.xyz</div>
+            <br />
+            <div class="api-title">从节点</div>
+            <div class="api-url">https://cc.2828257.xyz</div>
+            <br />
+            <div style="font-size:12px;color:#666;margin-top:8px;">如出现连通问题，请问该备份节点，避免和速度提升问题</div>
+          </div>
+          <div class="api-tips">
+            <div class="tip-title">ℹ️ 提示</div>
+            <div class="tip-item">• 支持 Gemini 原生通道，baseURL 后添加 <code>/gemini</code></div>
+            <div class="tip-item">• 429状态码：目前使用的是赠档流量，默认你请求速度限制为3分钟，需要解除限制可以购买快速套餐</div>
+            <div class="enjoy-text">Enjoy It! ❤️</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="action-btn">📱 TG 交流群</button>
+        <button class="action-btn secondary">💬 TG 联系群</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 页脚 -->
+  <div class="footer">
+    <p>Powered by <a href="#">Done-Hub</a></p>
+  </div>
+
+  <!-- 复制提示 -->
+  <div id="copy-toast" class="copy-toast">已复制</div>
+
+  <script>
+    function updateDate(){
+      const now=new Date();
+      const dateStr=now.toISOString().split('T')[0];
+      const el=document.querySelector('.update-date');
+      if(el) el.textContent=dateStr;
+    }
+
+    // 复制到剪贴板（HTTPS 优先，含回退）
+    function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(text);
+      } else {
+        const ta=document.createElement('textarea');
+        ta.value=text;
+        ta.style.position='fixed'; ta.style.left='-9999px';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        try { document.execCommand('copy'); } catch(e) {}
+        document.body.removeChild(ta);
+        return Promise.resolve();
+      }
+    }
+
+    // Toast
+    let toastTimer=null;
+    function showToast(msg){
+      const el=document.getElementById('copy-toast');
+      if(!el) return;
+      el.textContent=msg||'已复制';
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer=setTimeout(()=>el.classList.remove('show'), 1200);
+    }
+
+    document.addEventListener('DOMContentLoaded',()=>{
+      updateDate();
+
+      // 点击卡片复制模型名
+      const cards=document.querySelectorAll('.model-card');
+      cards.forEach(card=>{
+        card.addEventListener('click',function(){
+          const name=(this.querySelector('.model-name')||{}).textContent?.trim();
+          if(!name) return;
+          copyText(name).then(()=>showToast(`已复制：${name}`));
+        });
+      });
+    });
+  </script>
+</body>
+</html>
