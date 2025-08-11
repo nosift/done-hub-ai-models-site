@@ -28,6 +28,22 @@
   box-shadow: 0 0 0 3px rgba(52,199,89,0.35);
 }
 
+ /* 卡片内的“已复制”徽标（备用反馈） */
+.model-card .copied-badge{
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0,0,0,.85);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+.model-card.copied .copied-badge{ opacity: 1; }
+   
 
 /* 卡片右侧小方块图标（老的 🖼️ 用） */
 .model-icon {
@@ -44,12 +60,12 @@
   flex-shrink: 0;
 }
     
-   .copy-toast {
+.copy-toast {
   position: fixed;
   left: 50%;
-  top: 16px;          /* 固定到顶部 */
-  bottom: auto;       /* 不再使用底部 */
-  transform: translateX(-50%) translateY(20px);
+  top: calc(env(safe-area-inset-top, 0px) + 20px); /* 顶部 + 刘海安全区 */
+  bottom: auto;
+  transform: translateX(-50%); /* 不再向下偏移，防止被顶部条遮 */
   background: rgba(0,0,0,0.85);
   color: #fff;
   padding: 10px 14px;
@@ -57,14 +73,15 @@
   font-size: 13px;
   opacity: 0;
   pointer-events: none;
-  transition: all .25s ease;
-  z-index: 2147483647; /* 提到浏览器最大层级 */
-  will-change: transform, opacity; /* 小优化：更顺滑 */
+  transition: opacity .2s ease, transform .2s ease;
+  z-index: 2147483647; /* 浏览器最大层级 */
+  will-change: transform, opacity;
 }
-    .copy-toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+.copy-toast.show {
+  opacity: 1;
+  transform: translateX(-50%);
+}
+
 
     /* 导航栏（保持视觉不变） */
     .navbar{
@@ -499,20 +516,35 @@
       document.documentElement.classList.add('in-embed');
     }
 
-    // 点击卡片：复制 + 顶部 toast + 高亮
+    // 点击卡片：复制 + 顶部 toast + 高亮 + 备用徽标
     const cards = document.querySelectorAll('.model-card');
     cards.forEach(card => {
       card.addEventListener('click', function () {
         const name = (this.querySelector('.model-name') || {}).textContent?.trim();
         if (!name) return;
+
         copyText(name).then(() => {
+          // 顶部 toast
           showToast(`已复制：${name}`);
+
+          // 卡片内部备用徽标（一定可见）
+          let badge = this.querySelector('.copied-badge');
+          if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'copied-badge';
+            badge.textContent = '已复制';
+            this.appendChild(badge);
+          }
+
+          // 高亮 + 徽标显隐
           this.classList.add('copied');
-          setTimeout(() => this.classList.remove('copied'), 800);
+          clearTimeout(this._copyTimer);
+          this._copyTimer = setTimeout(() => this.classList.remove('copied'), 900);
         });
       });
     });
   });
 </script>
+
 </body>
 </html>
