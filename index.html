@@ -19,8 +19,7 @@
       -webkit-font-smoothing:antialiased;
       -moz-osx-font-smoothing:grayscale;
     }
-/* 如果页面被嵌入（iframe），把 toast 放到顶部，避免底部被遮 */
-.in-embed #copy-toast { top: 16px; bottom: auto; }
+
 
 /* 复制后的卡片短暂高亮 */
 .model-card.copied {
@@ -28,21 +27,7 @@
   box-shadow: 0 0 0 3px rgba(52,199,89,0.35);
 }
 
- /* 卡片内的“已复制”徽标（备用反馈） */
-.model-card .copied-badge{
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(0,0,0,.85);
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 11px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .15s ease;
-}
-.model-card.copied .copied-badge{ opacity: 1; }
+
    
 
 /* 卡片右侧小方块图标（老的 🖼️ 用） */
@@ -60,27 +45,39 @@
   flex-shrink: 0;
 }
     
+/* 复制后的卡片短暂高亮（沿用你现有的即可） */
+/* .model-card.copied { outline:2px solid #34c759; box-shadow:0 0 0 3px rgba(52,199,89,.35); } */
+
+/* 右下角 Toast（统一在右下角出现，更不易被外层遮挡） */
 .copy-toast {
   position: fixed;
-  left: 50%;
-  top: calc(env(safe-area-inset-top, 0px) + 20px); /* 顶部 + 刘海安全区 */
-  bottom: auto;
-  transform: translateX(-50%); /* 不再向下偏移，防止被顶部条遮 */
+  right: 16px;
+  bottom: 16px;
+  max-width: 80vw;
   background: rgba(0,0,0,0.85);
   color: #fff;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 13px;
+  line-height: 1.4;
   opacity: 0;
+  transform: translateY(8px) scale(0.98);
   pointer-events: none;
-  transition: opacity .2s ease, transform .2s ease;
-  z-index: 2147483647; /* 浏览器最大层级 */
+  transition: opacity .22s ease, transform .22s ease;
+  z-index: 2147483647;
   will-change: transform, opacity;
 }
+
 .copy-toast.show {
   opacity: 1;
-  transform: translateX(-50%);
+  transform: translateY(0) scale(1);
 }
+
+/* 减少动画（可选） */
+@media (prefers-reduced-motion: reduce) {
+  .copy-toast { transition: none; }
+}
+
 
 
     /* 导航栏（保持视觉不变） */
@@ -500,7 +497,7 @@
     }
   }
 
-  // 可选：更新右侧日期
+  // 可选：自动更新“最近更新”日期
   function updateDate() {
     const now = new Date();
     const el = document.querySelector('.update-date');
@@ -511,12 +508,12 @@
   document.addEventListener('DOMContentLoaded', () => {
     updateDate();
 
-    // 如果在 iframe 中，给 <html> 打标，触发顶部 toast 样式
+    // 如果页面在 iframe 中可加标记（不再改 toast 位置）
     if (window.top !== window.self) {
       document.documentElement.classList.add('in-embed');
     }
 
-    // 点击卡片：复制 + 顶部 toast + 高亮 + 备用徽标
+    // 点击卡片：复制 + 右下角 toast + 高亮
     const cards = document.querySelectorAll('.model-card');
     cards.forEach(card => {
       card.addEventListener('click', function () {
@@ -524,19 +521,7 @@
         if (!name) return;
 
         copyText(name).then(() => {
-          // 顶部 toast
           showToast(`已复制：${name}`);
-
-          // 卡片内部备用徽标（一定可见）
-          let badge = this.querySelector('.copied-badge');
-          if (!badge) {
-            badge = document.createElement('span');
-            badge.className = 'copied-badge';
-            badge.textContent = '已复制';
-            this.appendChild(badge);
-          }
-
-          // 高亮 + 徽标显隐
           this.classList.add('copied');
           clearTimeout(this._copyTimer);
           this._copyTimer = setTimeout(() => this.classList.remove('copied'), 900);
@@ -545,6 +530,7 @@
     });
   });
 </script>
+
 
 </body>
 </html>
