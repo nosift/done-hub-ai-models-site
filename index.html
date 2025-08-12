@@ -55,12 +55,30 @@
   margin-left: 12px;
   flex-shrink: 0;
 }
+/* 只保留页面级垂直滚动，避免嵌套滚动条 */
+html, body { height: auto; }
+body {
+  overflow-y: auto;      /* 只让 body 滚 */
+  overflow-x: hidden;    /* 你原本就想隐藏横向 */
+}
+
+/* 主要大容器不参与滚动 */
+.container, .main-content, .top-cards {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* 某些浏览器对 backdrop-filter 容器会创建新层并产生滚动条，强制可见即可 */
+.update-card, .api-info, .api-tips {
+  overflow: visible;
+}
+
     
 /* 复制后的卡片短暂高亮（沿用你现有的即可） */
 /* .model-card.copied { outline:2px solid #34c759; box-shadow:0 0 0 3px rgba(52,199,89,.35); } */
 
-/* 右下角 Toast（统一在右下角出现，更不易被外层遮挡） */
-.copy-toast {
+/* Toast：右下角提示（更强的层级与独立合成层） */
+.copy-toast{
   position: fixed;
   right: 16px;
   bottom: 16px;
@@ -75,9 +93,16 @@
   transform: translateY(8px) scale(0.98);
   pointer-events: none;
   transition: opacity .22s ease, transform .22s ease;
-  z-index: 2147483647;
+  z-index: 999999999;           /* 极高层级 */
   will-change: transform, opacity;
+  contain: layout paint;        /* 防止外层影响 */
+  transform: translateZ(0);     /* 独立合成层 */
 }
+.copy-toast.show{
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
 
 .copy-toast.show {
   opacity: 1;
@@ -475,17 +500,7 @@
   <div id="copy-toast" class="copy-toast" role="status" aria-live="polite">已复制</div>
 
 <script>
-  // 显示右下角提示
-  function showToast(message) {
-    const toast = document.getElementById('copy-toast');
-    if (!toast) return;
-    toast.textContent = message;
-    toast.classList.add('show');
-    clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => toast.classList.remove('show'), 1500);
-  }
-
-  // 复制文本（优先用 Clipboard API）
+  // 复制文本（优先 Clipboard API，失败回退）
   function copyText(text) {
     if (navigator.clipboard && window.isSecureContext) {
       return navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
@@ -509,7 +524,17 @@
     }
   }
 
-  // 自动更新“最近更新”日期
+  // Toast（只保留这一份）
+  function showToast(message) {
+    const toast = document.getElementById('copy-toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove('show'), 1600);
+  }
+
+  // 自动更新日期
   function updateDate() {
     const el = document.querySelector('.update-date');
     if (el) el.textContent = new Date().toISOString().split('T')[0];
@@ -526,19 +551,22 @@
       card.setAttribute('role', 'button');
 
       const modelName = card.querySelector('.model-name')?.textContent.trim();
-      if (modelName) {
-        card.setAttribute('aria-label', `复制模型名称：${modelName}`);
-      }
+      if (modelName) card.setAttribute('aria-label', `复制模型名称：${modelName}`);
 
       const handleCopy = () => {
-        if (copying) return;
+        if (copying || !modelName) return;
         copying = true;
-        copyText(modelName).then(() => {
-          showToast(`已复制：${modelName}`);
-          card.classList.add('copied');
-          clearTimeout(card._copyTimer);
-          card._copyTimer = setTimeout(() => card.classList.remove('copied'), 900);
-        }).finally(() => setTimeout(() => (copying = false), 200));
+        copyText(modelName)
+          .then(() => {
+            showToast(`已复制：${modelName}`);
+            card.classList.add('copied');
+            clearTimeout(card._copyTimer);
+            card._copyTimer = setTimeout(() => card.classList.remove('copied'), 900);
+          })
+          .catch(() => {
+            showToast('复制失败，请手动选择文本复制');
+          })
+          .finally(() => setTimeout(() => (copying = false), 200));
       };
 
       card.addEventListener('click', handleCopy);
@@ -551,6 +579,7 @@
     });
   });
 </script>
+
 
 
 </body>
