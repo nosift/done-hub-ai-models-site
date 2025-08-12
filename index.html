@@ -90,18 +90,19 @@ body {
   font-size: 13px;
   line-height: 1.4;
   opacity: 0;
-  transform: translateY(8px) scale(0.98);
+  /* 合并 transform，避免被覆盖 */
+  transform: translateY(8px) scale(0.98) translateZ(0);
   pointer-events: none;
   transition: opacity .22s ease, transform .22s ease;
-  z-index: 999999999;           /* 极高层级 */
+  z-index: 999999999;
   will-change: transform, opacity;
-  contain: layout paint;        /* 防止外层影响 */
-  transform: translateZ(0);     /* 独立合成层 */
+  contain: layout paint;
 }
 .copy-toast.show{
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateY(0) scale(1) translateZ(0);
 }
+
 
 
 .copy-toast.show {
