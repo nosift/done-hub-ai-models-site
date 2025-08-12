@@ -19,6 +19,10 @@
       -webkit-font-smoothing:antialiased;
       -moz-osx-font-smoothing:grayscale;
     }
+.model-card:focus-visible {
+  outline: 2px solid #007aff;
+  box-shadow: 0 0 0 3px rgba(0,122,255,.25);
+}
 
 
 /* 复制后的卡片短暂高亮 */
@@ -27,8 +31,15 @@
   box-shadow: 0 0 0 3px rgba(52,199,89,0.35);
 }
 
+.model-card{
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-tap-highlight-color: transparent;
+}
 
-   
+ /* 建议改成只保留居中 */
+.action-btn { text-align:center; }
+  
 
 /* 卡片右侧小方块图标（老的 🖼️ 用） */
 .model-icon {
@@ -450,7 +461,7 @@
 
       <div class="action-buttons">
         <button class="action-btn">📱 TG 交流群</button>
-        <button class="action-btn secondary">💬 TG 联系https://t.me/gifpeo</button>
+      <a class="action-btn secondary" href="https://t.me/gifpeo" target="_blank" rel="noopener">💬 TG 联系群</a>
       </div>
     </div>
   </div>
@@ -460,10 +471,11 @@
     <p>Powered by <a href="#">Done-Hub</a></p>
   </div>
 
-  <!-- 复制提示 -->
- <div id="copy-toast" class="copy-toast" role="status" aria-live="polite">已复制</div>
+   <!-- 复制提示（只保留一个） -->
+  <div id="copy-toast" class="copy-toast" role="status" aria-live="polite">已复制</div>
+
 <script>
-  // 显示提示
+  // Toast：右下角提示
   function showToast(message) {
     const toast = document.getElementById('copy-toast');
     if (!toast) return;
@@ -472,22 +484,34 @@
     setTimeout(() => toast.classList.remove('show'), 1500);
   }
 
-  // 复制文本到剪贴板（HTTPS 优先，含回退）
+  // 复制文本（HTTPS 优先，带回退；并修复复制导致的页面跳动）
   function copyText(text) {
     if (navigator.clipboard && window.isSecureContext) {
-      return navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
+      return navigator.clipboard.writeText(text)
+        .catch(() => legacyCopy(text))
+        .catch(() => showToast('复制失败，请手动选择文本复制'));
     }
-    return legacyCopy(text);
+    return legacyCopy(text).catch(() => showToast('复制失败，请手动选择文本复制'));
 
     function legacyCopy(t) {
-      const ta = document.createElement('textarea');
-      ta.value = t;
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.focus(); ta.select();
-      try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
-      return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const sx = window.scrollX, sy = window.scrollY;
+        const ta = document.createElement('textarea');
+        ta.value = t;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '0';
+        ta.style.left = '-9999px';
+        ta.style.opacity = '0';
+        ta.style.pointerEvents = 'none';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        window.scrollTo(sx, sy);
+        ok ? resolve() : reject();
+      });
     }
   }
 
@@ -498,33 +522,42 @@
     if (el) el.textContent = now.toISOString().split('T')[0];
   }
 
-  // 页面加载完再绑定
   document.addEventListener('DOMContentLoaded', () => {
     updateDate();
 
-    // 如果页面在 iframe 中可加标记（不再改 toast 位置）
-    if (window.top !== window.self) {
-      document.documentElement.classList.add('in-embed');
-    }
-
-    // 点击卡片：复制 + 右下角 toast + 高亮
     const cards = document.querySelectorAll('.model-card');
-    cards.forEach(card => {
-      card.addEventListener('click', function () {
-        const name = (this.querySelector('.model-name') || {}).textContent?.trim();
-        if (!name) return;
+    let copying = false;
 
+    cards.forEach(card => {
+      // 可访问性：让卡片可聚焦、像按钮一样读屏（可选但推荐）
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('role', 'button');
+      const modelName = (card.querySelector('.model-name') || {}).textContent?.trim();
+      if (modelName) card.setAttribute('aria-label', `复制模型名称：${modelName}`);
+
+      const handleCopy = () => {
+        if (copying) return;
+        const name = (card.querySelector('.model-name') || {}).textContent?.trim();
+        if (!name) return;
+        copying = true;
         copyText(name).then(() => {
           showToast(`已复制：${name}`);
-          this.classList.add('copied');
-          clearTimeout(this._copyTimer);
-          this._copyTimer = setTimeout(() => this.classList.remove('copied'), 900);
-        });
+          card.classList.add('copied');
+          clearTimeout(card._copyTimer);
+          card._copyTimer = setTimeout(() => card.classList.remove('copied'), 900);
+        }).finally(() => setTimeout(() => (copying = false), 200));
+      };
+
+      card.addEventListener('click', handleCopy);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleCopy();
+        }
       });
     });
   });
 </script>
-
 
 </body>
 </html>
