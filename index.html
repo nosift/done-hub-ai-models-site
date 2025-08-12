@@ -327,8 +327,6 @@ body {
           <div class="model-card green"><div class="model-name">gemini-2.5-flash-search</div><span class="model-badge free">免费</span></div>
           <div class="model-card green"><div class="model-name">gemini-2.5-pro</div><span class="model-badge free">免费</span></div>
           <div class="model-card green"><div class="model-name">gemini-2.5-pro-search</div><span class="model-badge free">免费</span></div>
-          <div class="model-card green"><div class="model-name">gemini-embedding-001</div><span class="model-badge free">免费</span></div>
-          <div class="model-card green"><div class="model-name">gemini-embedding-exp-03-07</div><span class="model-badge free">免费</span></div>
         </div>
       </div>
 
@@ -525,7 +523,7 @@ body {
     }
   }
 
-  // Toast（只保留这一份）
+  // Toast
   function showToast(message) {
     const toast = document.getElementById('copy-toast');
     if (!toast) return;
@@ -544,39 +542,43 @@ body {
   document.addEventListener('DOMContentLoaded', () => {
     updateDate();
 
-    const cards = document.querySelectorAll('.model-card');
-    let copying = false;
-
-    cards.forEach(card => {
+    // 让卡片可聚焦（无障碍）
+    document.querySelectorAll('.model-card').forEach(card => {
       card.setAttribute('tabindex', '0');
       card.setAttribute('role', 'button');
+      const name = card.querySelector('.model-name')?.textContent?.trim();
+      if (name) card.setAttribute('aria-label', `复制模型名称：${name}`);
+    });
 
-      const modelName = card.querySelector('.model-name')?.textContent.trim();
-      if (modelName) card.setAttribute('aria-label', `复制模型名称：${modelName}`);
+    let copying = false;
 
-      const handleCopy = () => {
-        if (copying || !modelName) return;
-        copying = true;
-        copyText(modelName)
-          .then(() => {
-            showToast(`已复制：${modelName}`);
-            card.classList.add('copied');
-            clearTimeout(card._copyTimer);
-            card._copyTimer = setTimeout(() => card.classList.remove('copied'), 900);
-          })
-          .catch(() => {
-            showToast('复制失败，请手动选择文本复制');
-          })
-          .finally(() => setTimeout(() => (copying = false), 200));
-      };
+    // 事件委托：无论卡片内部怎么变化，都能点到
+    document.addEventListener('click', (e) => {
+      const card = e.target.closest('.model-card');
+      if (!card) return;
+      if (copying) return;
 
-      card.addEventListener('click', handleCopy);
-      card.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleCopy();
-        }
-      });
+      const name = card.querySelector('.model-name')?.textContent?.trim();
+      if (!name) { showToast('未找到模型名称'); return; }
+
+      copying = true;
+      copyText(name)
+        .then(() => {
+          showToast(`已复制：${name}`);
+          card.classList.add('copied');
+          setTimeout(() => card.classList.remove('copied'), 900);
+        })
+        .catch(() => showToast('复制失败，请手动选择文本复制'))
+        .finally(() => setTimeout(() => (copying = false), 200));
+    });
+
+    // 键盘操作
+    document.addEventListener('keydown', (e) => {
+      if (!(e.key === 'Enter' || e.key === ' ')) return;
+      const card = e.target.closest?.('.model-card');
+      if (!card) return;
+      e.preventDefault();
+      card.click();
     });
   });
 </script>
