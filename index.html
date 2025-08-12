@@ -29,6 +29,7 @@ html, body {
   overflow-y: auto; /* 只保留一个纵向滚动 */
 }
 
+    
 /* 禁掉主要容器的独立滚动条 */
 .main-content,
 .container,
@@ -38,6 +39,17 @@ html, body {
   max-height: none !important;
 }
 
+html, body {
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;  /* 只让 body 滚 */
+}
+
+/* 常见壳容器去滚动（根据你页面实际类名覆盖） */
+#root, #app, .layout, .page, .page-wrapper, .content, .main, .container, .main-content {
+  overflow: visible !important;
+  max-height: none !important;
+}
 
 /* 复制后的卡片短暂高亮 */
 .model-card.copied {
@@ -104,11 +116,10 @@ body {
   font-size: 13px;
   line-height: 1.4;
   opacity: 0;
-  /* 合并 transform，避免被覆盖 */
   transform: translateY(8px) scale(0.98) translateZ(0);
   pointer-events: none;
   transition: opacity .22s ease, transform .22s ease;
-  z-index: 999999999;
+  z-index: 2147483647;    /* 顶到浏览器允许的极高层级 */
   will-change: transform, opacity;
   contain: layout paint;
 }
