@@ -23,6 +23,20 @@
   outline: 2px solid #007aff;
   box-shadow: 0 0 0 3px rgba(0,122,255,.25);
 }
+html, body {
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto; /* 只保留一个纵向滚动 */
+}
+
+/* 禁掉主要容器的独立滚动条 */
+.main-content,
+.container,
+#app,
+.page-wrapper {
+  overflow: visible !important;
+  max-height: none !important;
+}
 
 
 /* 复制后的卡片短暂高亮 */
